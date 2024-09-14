@@ -1,0 +1,3 @@
+#!/bin/sh
+
+pipenv run flask --debug run --port 8010
