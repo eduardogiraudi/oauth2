@@ -1,0 +1,7 @@
+{
+    "client_id": "10e6f91c-1266-46dc-bfc0-12d82cda76a1",
+    "authorized_redirects": [
+        "https://test.gcode.it",
+        "http://localhost:8010"
+    ]
+}
