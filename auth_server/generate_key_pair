@@ -1,0 +1,19 @@
+#!/bin/bash
+
+
+
+
+# Nome dei file per le chiavi
+PRIVATE_KEY_FILE="private.pem"
+PUBLIC_KEY_FILE="public.pem"
+
+# Genera la chiave privata usando la curva P-521 (necessaria per ES512)
+openssl ecparam -name secp521r1 -genkey -noout -out $PRIVATE_KEY_FILE
+
+# Estrai la chiave pubblica dalla chiave privata
+openssl ec -in $PRIVATE_KEY_FILE -pubout -out $PUBLIC_KEY_FILE
+
+# Messaggio di completamento
+echo "Chiavi generate:"
+echo "Chiave privata: $PRIVATE_KEY_FILE"
+echo "Chiave pubblica: $PUBLIC_KEY_FILE"
