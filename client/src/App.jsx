@@ -1,6 +1,6 @@
 
 
-function App() {
+function App(){
   return (
     <>
       CLIENT

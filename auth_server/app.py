@@ -7,7 +7,7 @@ from flask_jwt_extended import JWTManager, create_access_token, create_refresh_t
 import os
 from flask_cors import CORS
 import redis
-from db import clients_collection, users_collection
+from db import clients_collection, users_collection,jwt_banlist_collection
 import argon2
 import cryptography #non rimuovere, fornisce il supporto a es512
 from datetime import timedelta
@@ -20,11 +20,11 @@ CORS(app)
 
 #setup per l'hasher argon2
 hasher = argon2.PasswordHasher(
-    time_cost=6,           
-    memory_cost=2**18,      
-    parallelism=4,          
-    hash_len=64,           
-    salt_len=16             
+    time_cost=6,
+    memory_cost=2**18,
+    parallelism=4,
+    hash_len=64,
+    salt_len=16
 )
 pepper=os.getenv('PEPPER')
 
@@ -53,10 +53,12 @@ def revoked_token_response(callback):
 @jwt.needs_fresh_token_loader
 def fresh_token_required_response(callback):
     return responses.unauthorized(err="refresh_token_required",descr="A fresh token is required")
-    
 @jwt.token_in_blocklist_loader
-def check_if_token_is_in_blacklist(header,payload):
-    pass #se returna true si innesca l'errore se restituisce false non si innesca nessun errore e il loader del messaggio non viene innescato 
+def check_if_token_is_in_blacklist(header,payload: dict):
+    user_id = payload['sub']
+    device = payload['device']
+    user_banlist = jwt_banlist_collection.findOne({'user': ObjectId(user_id)})
+    return True if user_banlist and device in user_banlist['banned_devices'] else False
 
 
 #scadenza dell'access token
@@ -68,6 +70,12 @@ expires = timedelta(minutes=15)
 @app.route('/token', methods=['POST'])
 @app.route('/login', methods=['POST'])
 @app.route('/register', methods=['POST'])
-@app.route('/change_password_with_otp', methods=['POST'])
+@app.route('/change_password_with_recover_link', methods=['POST'])
+@app.route('/change_password_with_token', methods=['POST'])
 def todo():
     pass
+
+@app.route('/refresh_token',methods=['POST'])
+@jwt_required(refresh=True)
+def refresh():
+    pass #determinare ancora la logica (vedere se utilizzare token a uso singolo etc, c'è anche da implementare il fingerprinting per la 2fa)

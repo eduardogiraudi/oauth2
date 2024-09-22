@@ -8,6 +8,7 @@ client = MongoClient(f'mongodb://{os.getenv("MONGO_USER")}:{os.getenv("MONGO_PAS
 db = client['auth']
 clients_collection= db['clients']
 users_collection = db['users']
+jwt_banlist_collection = db['jwt_banlist']
 with open('client.json', 'r') as file:
     clients = json.load(file)
 if not clients_collection.find_one({}):

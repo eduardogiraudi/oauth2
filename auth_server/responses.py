@@ -69,7 +69,7 @@ def forbidden(descr):
 
 def ok(data):
     return Response(
-        response=dumps(data),  
+        response=dumps({'message':data}),  
         status=200,  
         mimetype='application/json' 
     )
