@@ -80,7 +80,6 @@ function code_verifier_generator(length) {
           'code': auth_code,
           'redirect_uri': redirect_uri,
           'client_id': import.meta.env.VITE_CLIENT_ID,
-          'state': given_state
         })).then(res=>{
           if(res.status===200){
             set_cookie('token',res.data.message.token)

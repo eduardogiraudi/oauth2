@@ -13,6 +13,7 @@ redis = "*"
 gunicorn = "*"
 argon2-cffi = "*"
 cryptography = "*"
+pyjwt = "*"
 
 [dev-packages]
 

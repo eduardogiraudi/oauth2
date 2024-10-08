@@ -10,7 +10,8 @@ import redis
 from db import clients_collection, users_collection,jwt_banlist_collection
 import argon2
 import cryptography #non rimuovere, fornisce il supporto a es512
-from datetime import timedelta
+from datetime import datetime, timedelta
+
 
 import responses
 
@@ -64,11 +65,23 @@ def check_if_token_is_in_blacklist(header,payload: dict):
 #scadenza dell'access token
 expires = timedelta(minutes=15)
 
+@app.route('/token', methods=['POST'])
+def ceppadiminchia():
+    id_token_payload = {
+    'user_id': 123,
+    'username': 'utente_esempio',
+    'exp': datetime.utcnow() + timedelta(hours=1),  # Token scade tra 1 ora
+    'iat': datetime.utcnow()  # Tempo di emissione del token
+    }
+    # Genera il token JWT firmato con ES512
+
+    id_token = jwt.encode(id_token_payload, app.config['JWT_PRIVATE_KEY'], algorithm='ES512')
 
 @app.route('/logout', methods=['POST'])
 @app.route('/authorize', methods=['POST'])
-@app.route('/token', methods=['POST'])
 @app.route('/login', methods=['POST'])
+def login():
+    hasher.check_needs_rehash() #checkare
 @app.route('/register', methods=['POST'])
 @app.route('/change_password_with_recover_link', methods=['POST'])
 @app.route('/change_password_with_token', methods=['POST'])
