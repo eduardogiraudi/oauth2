@@ -10,7 +10,6 @@ COPY go.sum ./
 RUN go mod download
 
 COPY *.go ./
-
 # Costruisci l'applicazione Go
 RUN go build -o /coraza-app
 
@@ -22,9 +21,13 @@ WORKDIR /root/
 
 # Copia il binario dell'app Go
 COPY --from=builder /coraza-app .
+# COPY waf_rules.conf ./
+COPY /rules/*.conf /coreruleset/rules/
+COPY /rules/*.data /coreruleset/rules/
 
+RUN mkdir /var/log/coraza/
 # Esponi la porta 8080
-EXPOSE 8080
+EXPOSE 8010
 
 # Esegui l'applicazione
 CMD ["./coraza-app"]

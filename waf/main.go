@@ -1,7 +1,8 @@
 package main
 
 import (
-    "fmt"
+    "log"
+    "os"
     "github.com/corazawaf/coraza/v3"
     corazahttp "github.com/corazawaf/coraza/v3/http"
     nethttp "net/http"
@@ -9,55 +10,74 @@ import (
     "io"
 )
 
-// Imposta l'URL del server esterno
-const externalServer = "http://localhost:5173"
+const externalServer = "http://localhost:8080"
+const logFilePath = "/var/log/coraza/audit.log"
 
 func main() {
-    // Configurazione del WAF con una semplice regola
-    waf, err := coraza.NewWAF(coraza.NewWAFConfig().
-        WithDirectives(`
+    // Imposta il logger per scrivere nel terminale e nel file di log
+    logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+    if err != nil {
+        log.Fatalf("Errore durante la creazione del file di log: %v", err)
+    }
+    defer logFile.Close()
+    log.SetOutput(logFile)
+
+    // Log di avvio
+    log.Println("Inizializzazione del WAF e server...")
+
+    // Crea una nuova configurazione WAF con logging
+    waf, err := coraza.NewWAF(coraza.NewWAFConfig().WithDirectives(`
         SecRuleEngine On
-        SecRequestBodyAccess On
-        SecRule REQUEST_URI "@rx ^/protected" "id:1,phase:1,deny,status:403"
+        SecAuditEngine RelevantOnly
+        SecAuditLog /var/log/coraza/audit.log
+        SecDebugLog /var/log/coraza/debug.log
+        SecDebugLogLevel 5
+
+        SecAuditLogParts ABDEFHZ
+        Include /rules/*.conf
     `))
     if err != nil {
-        panic(err)
+        log.Fatalf("Errore durante la creazione del WAF: %v", err)
     }
 
-    // Crea un nuovo URL per il server esterno
     externalURL, err := url.Parse(externalServer)
     if err != nil {
-        panic(err)
+        log.Fatalf("Errore nel parsing dell'URL esterno: %v", err)
     }
 
-    // Wrappare l'handler HTTP con Coraza WAF e inoltrare le richieste al server esterno
     handler := corazahttp.WrapHandler(waf, nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
-        // Log di debug per vedere cosa viene inoltrato
-        fmt.Printf("Forwarding request to %s\n", externalServer)
+        log.Printf("Forwarding request to %s\n", externalServer)
 
-        // Modifica la richiesta per inoltrarla al server esterno
+        // Modifica della richiesta per il server esterno
         r.URL.Scheme = externalURL.Scheme
         r.URL.Host = externalURL.Host
         r.Host = externalURL.Host
 
-        // Inoltra la richiesta al server esterno
+        // Inoltro della richiesta
         resp, err := nethttp.DefaultTransport.RoundTrip(r)
         if err != nil {
-            fmt.Printf("Error forwarding request: %v\n", err) // Log dell'errore
-            nethttp.Error(w, "Error forwarding request", nethttp.StatusInternalServerError)
+            log.Printf("Errore durante il forwarding della richiesta: %v\n", err)
+            w.WriteHeader(nethttp.StatusInternalServerError)
+            _, _ = w.Write([]byte("Errore interno durante il forwarding della richiesta"))
             return
         }
         defer resp.Body.Close()
 
-        // Copia i dati di risposta nel response writer
+        // Scrive la risposta al client
         w.WriteHeader(resp.StatusCode)
         _, err = io.Copy(w, resp.Body)
         if err != nil {
-            fmt.Printf("Error reading response: %v\n", err) // Log dell'errore
-            nethttp.Error(w, "Error reading response", nethttp.StatusInternalServerError)
+            log.Printf("Errore durante la lettura della risposta: %v\n", err)
+            w.WriteHeader(nethttp.StatusInternalServerError)
+            _, _ = w.Write([]byte("Errore interno durante la lettura della risposta"))
         }
     }))
 
-    // Avviare il server sulla porta 8080
-    nethttp.ListenAndServe(":8080", handler)
+    // Log di avvio del server
+    log.Println("Avvio del server sulla porta 8010...")
+    
+    if err := nethttp.ListenAndServe(":8010", handler); err != nil {
+        log.Fatalf("Errore durante l'avvio del server: %v", err)
+    }
+
 }
