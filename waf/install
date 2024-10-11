@@ -1,2 +1,11 @@
 #!/bin/bash
-docker build -t coraza-waf .
+
+# Installazione delle dipendenze del progetto
+echo "Installazione delle dipendenze del progetto..."
+
+# Installa le dipendenze specificate nel file go.mod
+go mod tidy
+
+echo "Installazione completata!"
+
+docker build -t coraza-waf  .

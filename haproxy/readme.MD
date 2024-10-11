@@ -1,0 +1,1 @@
+##RIVEDERE IL CFG, è solo un test con haproxy dockerizzato e coraza non dockerizzato
