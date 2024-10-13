@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  haproxy:
+    build: ./haproxy
+    container_name: haproxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+      - ./haproxy/coraza.cfg:/etc/haproxy/coraza.cfg
+    networks:
+      - coraza-network
+    depends_on:
+      - coraza-spoa
+
+  coraza-spoa:
+    build: ./waf
+    container_name: coraza-spoa
+    networks:
+      - coraza-network
+    ports:
+      - "9000:9000"  
+    command: coraza-spoa --config /etc/coraza-spoa/config.yaml
+
+networks:
+  coraza-network:
+    driver: bridge

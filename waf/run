@@ -1,8 +1,0 @@
-#!/bin/bash
-
-# Directory coraza
-cd "$(dirname "$0")"
-
-# Avvio del server Go (Coraza) in locale
-echo "Avvio del server Go (Coraza) in locale..."
-go run main.go

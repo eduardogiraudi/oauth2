@@ -1,9 +1,12 @@
+# Usa l'immagine ufficiale di HAProxy
+FROM haproxy:2.7
 
-FROM haproxy:2.4-alpine
-
-
+# Copia la configurazione di HAProxy
 COPY haproxy.cfg /usr/local/etc/haproxy/haproxy.cfg
-COPY entrypoint.sh .
+COPY coraza.cfg /etc/haproxy/coraza.cfg
+
+# Espone la porta 80 per il traffico HTTP
 EXPOSE 80
 
-ENTRYPOINT ["/bin/sh", "entrypoint.sh"]
+# Comando di avvio predefinito
+CMD ["haproxy", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
