@@ -11,7 +11,8 @@ from db import clients_collection, users_collection,jwt_banlist_collection
 import argon2
 import cryptography #non rimuovere, fornisce il supporto a es512
 from datetime import datetime, timedelta
-
+from decorators import require_args, require_params
+from urllib.parse import urlparse
 
 import responses
 
@@ -63,19 +64,62 @@ def check_if_token_is_in_blacklist(header,payload: dict):
 
 
 #scadenza dell'access token
-expires = timedelta(minutes=15)
+expires = timedelta(minutes=5)
 
+@require_params(['grant_type', 'code', 'redirect_uri', 'client_id','code_verifier'])
 @app.route('/token', methods=['POST'])
-def ceppadiminchia():
-    id_token_payload = {
-    'user_id': 123,
-    'username': 'utente_esempio',
-    'exp': datetime.utcnow() + timedelta(hours=1),  # Token scade tra 1 ora
-    'iat': datetime.utcnow()  # Tempo di emissione del token
-    }
-    # Genera il token JWT firmato con ES512
+def token():
+    data = request.get_json()
+    grant_type = data.get('grant_type')
+    code = data.get('code')
+    redirect_uri = data.get('redirect_uri')
+    client_id = data.get('client_id')
+    code_verifier = data.get('code_verifier')
+    # user_id = #come lo recupero?
+    '''
+    VERIFICA DEL CLIENT
+    '''
+    #controllo se il client è registrato e il redirect uri è associato al client
+    client = clients_collection.find_one({'client_id': client_id})
+    if not client:
+        return responses.bad_request(err='invalid_client',descr='Client not found')
+    parsed_redirect_uri = urlparse(redirect_uri)
+    client_redirect_uri = urlparse(client['redirect_uri'])
+    if parsed_redirect_uri.netloc != client_redirect_uri.netloc:
+        return responses.bad_request(err='invalid_client',descr='Redirect uri does not match with the client')
+    '''
+    FINE VERIFICA DEL CLIENT
+    '''
 
+    '''
+    VERIFICA DEL CODE
+    '''
+
+
+
+    '''
+    FINE VERIFICA DEL CODE
+    '''
+
+    id_token_payload = {
+        # 'sub': 'user_id',  
+        'aud': client_id,
+        'exp': datetime.utcnow() + expires,
+        'iat': datetime.utcnow(),
+        'iss': 'auth_server',
+        'sub': 'user_id',#il sub va recuperato dal server di risorse tramite una chiamata redis
+        # 'nonce': data.get('nonce')  # Se usi nonce, includilo
+    }
+    token=create_access_token(identity='user_id', expires_delta=expires)
+    refresh_token=create_refresh_token(identity='user_id', expires_delta=expires)
     id_token = jwt.encode(id_token_payload, app.config['JWT_PRIVATE_KEY'], algorithm='ES512')
+    return responses.ok(data={
+        'access_token': token, 
+        'refresh_token': refresh_token, 
+        'id_token': id_token,
+        'token_type': 'Bearer',
+        'expires_in': expires.total_seconds()
+        })
 
 @app.route('/logout', methods=['POST'])
 @app.route('/authorize', methods=['POST'])

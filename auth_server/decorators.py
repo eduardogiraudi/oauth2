@@ -1,23 +1,34 @@
 from functools import wraps
-from flask import request, jsonify
+from flask import request
 import responses
-def require_arg(arg_name):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if arg_name not in request.args:
-                return responses.bad_request(err='invalid request',descr=f"Missing required arg: {arg_name}")
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
 
-def require_param(param_name):
+def require_params(param_names):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             json_data = request.get_json()
-            if param_name not in json_data:
-                return responses.bad_request(err='invalid request', descr=f"Missing required parameter: {param_name}")
+            missing_params = [param for param in param_names if param not in json_data]
+
+            if missing_params:
+                return responses.bad_request(
+                    err='invalid request',
+                    descr=f"Missing required parameters: {', '.join(missing_params)}"
+                )
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+def require_args(arg_names):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            missing_args = [arg for arg in arg_names if arg not in request.args]
+
+            if missing_args:
+                return responses.bad_request(
+                    err='invalid request',
+                    descr=f"Missing required arguments: {', '.join(missing_args)}"
+                )
             return func(*args, **kwargs)
         return wrapper
     return decorator
