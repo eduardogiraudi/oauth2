@@ -14,12 +14,13 @@ from datetime import datetime, timedelta
 from decorators import require_args, require_params
 from urllib.parse import urlparse
 from utils import verify_code_verifier
-
+from db import redis_client
 import responses
+from json import loads
 
 app = Flask(__name__)
 CORS(app)
-redis_client = redis.Redis(host='localhost', port=6379, db=0) #da parametrizzare e mettere la password
+supported_grant_types = ['authorization_code']
 
 #setup per l'hasher argon2
 hasher = argon2.PasswordHasher(
@@ -60,7 +61,7 @@ def fresh_token_required_response(callback):
 def check_if_token_is_in_blacklist(header,payload: dict):
     user_id = payload['sub']
     device = payload['device']
-    user_banlist = jwt_banlist_collection.findOne({'user': ObjectId(user_id)})
+    user_banlist = jwt_banlist_collection.find_one({'user': ObjectId(user_id)})
     return True if user_banlist and device in user_banlist['banned_devices'] else False
 
 
@@ -73,13 +74,27 @@ def token():
     data = request.get_json()
     grant_type = data.get('grant_type')
     authorization_code = data.get('code')
-    saved_authorization_code = redis_client.lpop('authorization_code_user_id')
-
+    saved_info = redis_client.get(loads(authorization_code))
+    code_challenge = saved_info['code_challenge']
+    saved_authorization_code = saved_info['authorization_code']
     redirect_uri = data.get('redirect_uri')
     client_id = data.get('client_id')
     code_verifier = data.get('code_verifier')
-    code_challenge = redis_client.lpop('code_challenge_user_id')
-    # user_id = #come lo recupero?
+
+    '''VERIFICA CHE IL GRANT TYPE SIA SUPPORTATO'''
+    if grant_type not in supported_grant_types:
+        return responses.bad_request(err='unsupported_grant_type',descr='Unsupported grant type')
+    '''
+    FINE VERIFICA  GRANT TYPE
+    '''
+    '''
+    VERIFICA CHE NON SIA SCADUTO
+    '''
+    if datetime.utcnow() > saved_info['expiration_date']:
+        return responses.bad_request(err='invalid_grant',descr='Authorization code expired')
+    '''
+    FINE VERIFICA CHE NON SIA SCADUTO
+    '''
     '''
     VERIFICA DEL CLIENT
     '''
@@ -105,14 +120,24 @@ def token():
     '''
     VERIFICA DEL CODE
     '''
-    if saved_authorization_code != authorization_code:
+    if not saved_authorization_code:
         return responses.bad_request(err='invalid_grant',descr='Invalid authorization code')
     '''
     FINE VERIFICA DEL CODE
     '''
+
+    '''
+    INVALIDA IL CODE
+    '''
+    redis_client.delete(loads(authorization_code))
+    '''
+    FINE INVALIDA IL CODE
+    '''
     '''
     GENERAZIONE DEL TOKEN
     '''
+
+    
     id_token_payload = {
         # 'sub': 'user_id',  
         'aud': client_id,
