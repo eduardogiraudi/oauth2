@@ -13,12 +13,13 @@ import cryptography #non rimuovere, fornisce il supporto a es512
 from datetime import datetime, timedelta
 from decorators import require_args, require_params
 from urllib.parse import urlparse
+from utils import verify_code_verifier
 
 import responses
 
 app = Flask(__name__)
 CORS(app)
-
+redis_client = redis.Redis(host='localhost', port=6379, db=0) #da parametrizzare e mettere la password
 
 #setup per l'hasher argon2
 hasher = argon2.PasswordHasher(
@@ -71,10 +72,13 @@ expires = timedelta(minutes=5)
 def token():
     data = request.get_json()
     grant_type = data.get('grant_type')
-    code = data.get('code')
+    authorization_code = data.get('code')
+    saved_authorization_code = redis_client.lpop('authorization_code_user_id')
+
     redirect_uri = data.get('redirect_uri')
     client_id = data.get('client_id')
     code_verifier = data.get('code_verifier')
+    code_challenge = redis_client.lpop('code_challenge_user_id')
     # user_id = #come lo recupero?
     '''
     VERIFICA DEL CLIENT
@@ -90,17 +94,25 @@ def token():
     '''
     FINE VERIFICA DEL CLIENT
     '''
-
+    '''
+    VERIFICA DEL CODE VERIFIER
+    '''
+    if not verify_code_verifier(code_verifier, code_challenge):
+        return responses.bad_request(err='invalid_grant',descr='Invalid code verifier')
+    '''
+    FINE VERIFICA DEL CODE VERIFIER
+    '''
     '''
     VERIFICA DEL CODE
     '''
-
-
-
+    if saved_authorization_code != authorization_code:
+        return responses.bad_request(err='invalid_grant',descr='Invalid authorization code')
     '''
     FINE VERIFICA DEL CODE
     '''
-
+    '''
+    GENERAZIONE DEL TOKEN
+    '''
     id_token_payload = {
         # 'sub': 'user_id',  
         'aud': client_id,
