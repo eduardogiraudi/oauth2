@@ -14,6 +14,19 @@ def bad_request(err, descr):
             "Pragma": "no-cache"
         }
     )
+def not_found(err, descr):
+    return Response(
+        response=dumps({
+            'error': err,
+            'error_description': descr
+        }),
+        status=404,  
+        mimetype='application/json',  
+        headers={
+            "Cache-Control": "no-store",  
+            "Pragma": "no-cache"
+        }
+    )
 def unauthorized(err, descr):
     return Response(
         response=dumps({
